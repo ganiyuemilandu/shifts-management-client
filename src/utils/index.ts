@@ -2,7 +2,7 @@ import axios, { type AxiosRequestConfig } from "axios";
 import reactHotToast from "react-hot-toast";
 
 
-const BASE_URL = "/api/v1";
+const BASE_URL = import.meta.env.VITE_APP_API_BASE_URL || "http://localhost:3000/api/v1";
 
 export const axiosClient = axios.create({
 	baseURL: BASE_URL,
