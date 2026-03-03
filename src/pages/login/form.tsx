@@ -18,6 +18,8 @@ const Form: React.FC = () => {
 	const navigate = useNavigate();
 
 	const onSubmit = async (formData: SchemaType) => {
+		console.log(import.meta.env.VITE_APP_API_BASE_URL);
+		toast.success(import.meta.env.VITE_APP_API_BASE_URL || "http://localhost:3000");
 		try {
 			const { data } = await axiosClient.post<HTTPOkResponse<SessionData>>("/auth/login", formData);
 				toast.success("Success! You are now logged in");
