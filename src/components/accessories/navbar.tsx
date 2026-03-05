@@ -1,4 +1,4 @@
-import { Box, Flex, Link, Menu, Spacer, Portal, Button, Image } from "@chakra-ui/react";
+import { Box, Flex, Link, Menu, Portal, Button, Image, Text } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 import { logoutUser } from "@/utils/handlers";
@@ -6,6 +6,7 @@ import { useSession } from "./session";
 
 
 const Navbar: React.FC = () => {
+	const { VITE_APP_TITLE: appTitle } = import.meta.env;
 	const { user, updateSession } = useSession();
 
 	const onLogout = async () => {
@@ -16,7 +17,6 @@ const Navbar: React.FC = () => {
 		return (
 		<Box as={"nav"} bg={"blue.500"}>
 			<Flex
-			minWidth={"max-content"}
 			alignItems={"center"}
 			px={{ base: "16px", md: "24px" }}
 			py={"12px"}
@@ -24,11 +24,11 @@ const Navbar: React.FC = () => {
 			m={"0 auto"}
 			>
 				{/* Logo and Home Link Container */}
-				<Flex alignItems={"center"} gap={{ base: 2, md: 4 }}>
+				<Flex flex={1} alignItems={"center"} gap={{ base: 2, md: 4 }}>
 					<RouterLink to={"/"}>
 						<Image
 						src="/assets/logo.jpeg"
-						alt="Shifts Manager Logo"
+						alt={`${appTitle} Logo`}
 						height={{ base: "30px", md: "45px" }}
 						objectFit={"contain"}
 						_hover={{ opacity: 0.8, transform: "scale(1.05)" }}
@@ -47,13 +47,26 @@ const Navbar: React.FC = () => {
 						</Link>
 					</Box>
 				</Flex>
-				<Spacer/>
 
-				<Box>
+				{/* 2. CENTER SECTION: App Title */}
+				<Box textAlign={"center"}>
+					<Text
+					color={"white"}
+					fontWeight={"bold"}
+					fontSize={{ base: "md", md: "xl" }}
+					letterSpacing={"wider"}
+					whiteSpace="nowrap"
+					>
+						{appTitle || "Passionshines Shift Manager"}
+					</Text>
+				</Box>
+
+				{/* 3. RIGHT SECTION: User Menu */}
+				<Flex flex={1} justifyContent={"flex-end"}>
 					{user? (
 						<Menu.Root>
 							<Menu.Trigger asChild>
-								<Button variant={"subtle"}>
+								<Button variant={"subtle"} size={{ base: "sm", md: "md" }}>
 									{user.firstName} {user.lastName} ({user.role})
 								</Button>
 							</Menu.Trigger>
@@ -73,17 +86,17 @@ const Navbar: React.FC = () => {
 												</Menu.Item>
 											</>
 										)}
-										<Menu.Item value="logout" onClick={onLogout}>Log out</Menu.Item>
+										<Menu.Item value="logout" color={"red.500"} onClick={onLogout}>Log out</Menu.Item>
 									</Menu.Content>
 								</Menu.Positioner>
 							</Portal>
 						</Menu.Root>
 					): (
-						<Link asChild>
+						<Link asChild color={"white"} fontWeight={"semibold"}>
 							<RouterLink to={"/login"}>Log in</RouterLink>
 						</Link>
 					)}
-				</Box>
+				</Flex>
 			</Flex>
 		</Box>
 	);
