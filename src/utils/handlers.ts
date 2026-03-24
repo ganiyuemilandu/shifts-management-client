@@ -1,4 +1,5 @@
 import type { AxiosError } from "axios";
+import { formatDistanceToNow } from "date-fns";
 import type { HTTPErrorResponse, HTTPOkResponse, SessionData } from "@/@types";
 import type { ShiftData } from "@/@types/shift";
 import { axiosClient, includeToken, toast } from "@/utils";
@@ -32,7 +33,15 @@ export const handleRequestError = (err: unknown) => {
 	if (err instanceof Error) {
 		const { response } = err as AxiosError;
 		if (response) {  // Response from server
-			const { data } = response;
+			const { data, status } = response;
+			if (status === 429) {
+				const secondsLeft = response.headers["retry-after"];
+				const millisLeft = secondsLeft ? parseInt(secondsLeft, 10) * 1000 : 0;
+				const waitTime = millisLeft && formatDistanceToNow(new Date(Date.now() + millisLeft), { addSuffix: true });
+				const message = `Too many requests. Please try again ${waitTime || "later"}.`;
+				toast.error(message);
+				return;
+			}
 			const { error: { message } } = data as HTTPErrorResponse;
 			toast.error(message);
 		}

@@ -2,12 +2,11 @@ import { Box, Flex, Heading, Text } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 
-import type { VerificationData } from "@/@types";
 import Form, { VerificationForm } from "./form";
 
 
 export const Component: React.FC = () => {
-	const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
+	const [verificationData, setVerificationData] = useState<Record<"email" | "token", string>>();
 
 	return verificationData ? (
 		<Box p={3} maxW={"lg"} mx={"auto"}>

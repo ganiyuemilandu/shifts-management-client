@@ -1,11 +1,10 @@
 import { Button, Field, Group, Input, Link, PinInput, Stack, Text } from "@chakra-ui/react";
-import type { AxiosError } from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useEffect, useState } from "react";
 
-import type { HTTPOkResponse, SessionData, VerificationData } from "@/@types";
+import type { HTTPOkResponse, SessionData } from "@/@types";
 import { PasswordInput } from "@components/ui/password-input";
 import { handleRequestError } from "@/utils/handlers";
 import { axiosClient, includeToken, toast } from "@/utils";
@@ -13,14 +12,14 @@ import { type SchemaType, schema } from "./schema";
 import { useSession } from "@/components/accessories/session";
 
 
-const Form: React.FC<{ setVerificationData: (data: VerificationData) => void }> = ({ setVerificationData }) => {
+const Form: React.FC<{ setVerificationData: (data: Record<"email" | "token", string>) => void }> = ({ setVerificationData }) => {
 	const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SchemaType>({ resolver: zodResolver(schema) });
 
 	const onSubmit = async (formData: SchemaType) => {
 		try {
-			const { data } = await axiosClient.post<HTTPOkResponse<VerificationData>>("/auth/register", formData);
+			const { data } = await axiosClient.post<HTTPOkResponse<string>>("/auth/register", formData);
 			toast.success("Registration Successful! You may now check your email for a verification code.");
-			setVerificationData(data.data);
+			setVerificationData({ email: formData.email, token: data.data });
 		} catch (error) {
 			handleRequestError(error);
 		}							
@@ -90,49 +89,46 @@ const Form: React.FC<{ setVerificationData: (data: VerificationData) => void }> 
 };
 
 
-export const VerificationForm: React.FC<VerificationData> = (verificationData) => {
-	const seconds = 120;
-	const [{ verifyToken, resendToken }, setVerificationData] = useState<VerificationData>(verificationData);
+export const VerificationForm: React.FC<Record<"email" | "token", string>> = ({ email, token: verificationToken }) => {
 	const navigate = useNavigate();
 	const { updateSession } = useSession();
-	const [timer, setTimer] = useState<number>(seconds);
-	const [code, setCode] = useState<string>("");
+	const [timer, setTimer] = useState<number>(120);
+	const [token, setToken] = useState<string>(verificationToken);
 	const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 	const [isError, setIsError] = useState<boolean>(false);
+	const [code, setCode] = useState<string[]>(["", "", "", "", "", ""]);
+	const codeString = code.join("");
 
-	const verify = async (code: string) => {
+	const verifyEmail = async (codeString: string) => {
+		if (codeString.length !== 6)
+			return;
 		try {
 			setIsSubmitting(true);
-			const { data: { data } } = await axiosClient.post<HTTPOkResponse<SessionData>>(`/auth/verify-email`, { code }, includeToken(verifyToken));
+			const { data: { data } } = await axiosClient.post<HTTPOkResponse<SessionData>>(
+				`/email/verify`,
+				{ code: codeString },
+				includeToken(token)
+			);
 			updateSession(data.user, data.token);
 			toast.success("Verification successful! You are now logged in.");
 			navigate("/profile", { replace: true });
 		} catch (error) {
-			const { response } = error as AxiosError;
-			if (response?.status === 400) {
-				setIsError(true);
-				toast.error("Incorrect code! Try again.");
-			}
-			else
-				toast.error("Something went wrong. Please try again.");
+			setIsError(true);
+			handleRequestError(error);
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
-	const onVerify = (details: PinInput.ValueChangeDetails) => {
-		const code = details.valueAsString;
-		setCode(code);
-		verify(code);
-	};
-
-	const onResendCode = async () => {
+	const sendCode = async () => {
 		try {
 			setIsSubmitting(true);
-			setTimer(seconds);
-			const { data } = await axiosClient.post<HTTPOkResponse<VerificationData>>(`/auth/send-email`, undefined, includeToken(resendToken));
-			setVerificationData(data.data);
+			const { data } = await axiosClient.post<HTTPOkResponse<string>>(`/email/send`, { email });
 			toast.success("A new code has been sent!");
+			setToken(data.data);
+			setCode(["", "", "", "", "", ""]);
+			setIsError(false);
+			setTimer(120);
 		} catch (_) {
 			toast.error("Something went wrong. Please try again.");
 		} finally {
@@ -141,11 +137,11 @@ export const VerificationForm: React.FC<VerificationData> = (verificationData) =
 	};
 
 	useEffect(() => {
-		const interval = setInterval(() => {
-			setTimer((prev) => prev === 0 ? 0 : prev - 1);
-		}, 1000);
+		if (timer === 0)
+			return;
+		const interval = setInterval(() => setTimer(timer - 1), 1000);
 		return () => clearInterval(interval);
-	}, []);
+	}, [timer]);
 
 	return (
 		<Stack gap={4}>
@@ -158,13 +154,16 @@ export const VerificationForm: React.FC<VerificationData> = (verificationData) =
 			count={6}
 			type={"numeric"}
 			placeholder="○"
-			onValueChange={() => setIsError(false)}
-			onValueComplete={onVerify}
+			value={code}
+			onValueChange={(details) => {
+				setIsError(false);
+				setCode(details.value);
+			}}
+			onValueComplete={(details) => verifyEmail(details.valueAsString)}
 			>
 				<Group>
 					<PinInput.Control>
-						<PinInput.Input key={0} index={0} autoFocus />
-						{[1, 2, 3, 4, 5].map((index) => (
+						{code.map((_, index) => (
 							<PinInput.Input key={index} index={index} />
 						))}
 					</PinInput.Control>
@@ -172,11 +171,11 @@ export const VerificationForm: React.FC<VerificationData> = (verificationData) =
 			</PinInput.Root>
 
 			<Button
-			disabled={code.length < 6}
+			disabled={codeString.length < 6}
 			loading={isSubmitting}
 			colorPalette={"blue"}
 			textTransform={"uppercase"}
-			onClick={() => verify(code)}
+			onClick={() => verifyEmail(codeString)}
 			>
 				Verify
 			</Button>
@@ -191,7 +190,7 @@ export const VerificationForm: React.FC<VerificationData> = (verificationData) =
 					<Link
 					color={"blue.500"}
 					fontWeight={"bold"}
-					onClick={onResendCode}
+					onClick={sendCode}
 					>
 						Resend Now
 					</Link>

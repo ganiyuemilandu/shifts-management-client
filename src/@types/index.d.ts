@@ -22,12 +22,6 @@ export interface SessionProps {
     readonly updateSession: (user: UserData | null, token?: string | null) => void
 };
 
-export type VerificationData = {
-	readonly verifyToken: string,
-	readonly resendToken: string,
-	readonly user: UserData
-};
-
 export type SessionData = {
 	readonly user: UserData,
 	readonly token: string
